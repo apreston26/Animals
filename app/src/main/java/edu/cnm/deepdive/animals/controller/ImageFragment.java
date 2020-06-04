@@ -1,5 +1,6 @@
 package edu.cnm.deepdive.animals.controller;
 
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 import android.webkit.WebResourceRequest;
@@ -19,6 +20,7 @@ import edu.cnm.deepdive.animals.model.Animal;
 import edu.cnm.deepdive.animals.service.AnimalService;
 import java.io.IOException;
 import java.util.List;
+import java.util.Random;
 import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
@@ -37,6 +39,7 @@ public class ImageFragment extends Fragment {
   }
 
   private void setupWebView(View root) {
+
     contentView = root.findViewById(R.id.content_view);
     contentView.setWebViewClient(new WebViewClient() {
       @Override
@@ -51,14 +54,17 @@ public class ImageFragment extends Fragment {
     settings.setDisplayZoomControls(false);
     settings.setUseWideViewPort(true);
     settings.setLoadWithOverviewMode(true);
-    new Retriever().start();
+    new RetrieveImageTask().execute();
 
   }
 
-  private class Retriever extends Thread {
+  private class RetrieveImageTask extends AsyncTask<Void, Void, List<Animal>> {
+
+    private AnimalService animalService;
 
     @Override
-    public void run() {
+    protected void onPreExecute() {
+      super.onPreExecute();
       Gson gson = new GsonBuilder()
           .excludeFieldsWithoutExposeAnnotation()
           .create();
@@ -67,7 +73,12 @@ public class ImageFragment extends Fragment {
           .addConverterFactory(GsonConverterFactory.create(gson))
           .build();
 
-      AnimalService animalService = retrofit.create(AnimalService.class);
+       animalService = retrofit.create(AnimalService.class);
+    }
+
+
+    @Override
+    protected List<Animal> doInBackground(Void... voids) {
 
       try {
 
@@ -76,23 +87,30 @@ public class ImageFragment extends Fragment {
         if (response.isSuccessful()) {
           List<Animal> animals = response.body();
           assert animals != null;
-          final String url = animals.get(0).getUrl();
-          getActivity().runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-              contentView.loadUrl(url);
-            }
-          });
+          return animals;
+
+
         } else {
           Log.e("AnimalService", response.message());
+          cancel(true);
         }
 
       } catch (IOException e) {
         Log.e("AnimalService", e.getMessage(), e);
+        cancel(true);
       }
+      return null;
+    }
+
+    @Override
+    protected void onPostExecute(List<Animal> animals) {
+      super.onPostExecute(animals);
+        final String url = animals.get(23).getUrl();
+          contentView.loadUrl(url);
+        }
 
     }
 
   }
 
-}
+
